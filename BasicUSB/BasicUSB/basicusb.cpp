@@ -148,7 +148,7 @@ DriverEntry(PDRIVER_OBJECT  DriverObject,
 ///////////////////////////////////////////////////////////////////////////////
 NTSTATUS
 BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
-                     PWDFDEVICE_INIT DeviceInit)
+    PWDFDEVICE_INIT DeviceInit)
 {
     NTSTATUS                     status;
     WDF_OBJECT_ATTRIBUTES        objAttributes;
@@ -187,16 +187,14 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     // Specify our device context
     //
     WDF_OBJECT_ATTRIBUTES_SET_CONTEXT_TYPE(&objAttributes,
-                                           BASICUSB_DEVICE_CONTEXT);
+        BASICUSB_DEVICE_CONTEXT);
 
-#if _KERNEL_MODE
     //
     // Set our I/O type to DIRECT, meaning that we want do not want
     // to copy data sent with read/write.
     //
     WdfDeviceInitSetIoType(DeviceInit,
-                           WdfDeviceIoDirect);
-#endif
+        WdfDeviceIoDirect);
 
     //
     // In this driver we need to be notified of some Pnp/Power
@@ -216,13 +214,13 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     // in D0Exit.
     //
     pnpPowerCallbacks.EvtDeviceD0Entry = BasicUsbEvtDeviceD0Entry;
-    pnpPowerCallbacks.EvtDeviceD0Exit  = BasicUsbEvtDeviceD0Exit;
+    pnpPowerCallbacks.EvtDeviceD0Exit = BasicUsbEvtDeviceD0Exit;
 
     //
     // Copy the PnP/Power related callbacks to the DeviceInit structure
     //
     WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit,
-                                           &pnpPowerCallbacks);
+        &pnpPowerCallbacks);
 
 
     //
@@ -236,13 +234,13 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     // Create our device object
     //
     status = WdfDeviceCreate(&DeviceInit,
-                             &objAttributes,
-                             &device);
+        &objAttributes,
+        &device);
 
     if (!NT_SUCCESS(status)) {
 #if DBG
         DbgPrint("WdfDeviceCreate failed 0x%0x\n",
-                 status);
+            status);
 #endif
         goto Done;
     }
@@ -252,12 +250,12 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     // the device by name.
     //
     status = WdfDeviceCreateSymbolicLink(device,
-                                         &userDeviceName);
+        &userDeviceName);
 
     if (!NT_SUCCESS(status)) {
 #if DBG
         DbgPrint("WdfDeviceCreateSymbolicLink failed 0x%0x\n",
-                 status);
+            status);
 #endif
         goto Done;
     }
@@ -268,13 +266,13 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     // the device
     //
     status = WdfDeviceCreateDeviceInterface(device,
-                                            &GUID_DEVINTERFACE_BASICUSB,
-                                            nullptr);
+        &GUID_DEVINTERFACE_BASICUSB,
+        nullptr);
 
     if (!NT_SUCCESS(status)) {
 #if DBG
         DbgPrint("WdfDeviceCreateDeviceInterface failed 0x%0x\n",
-                 status);
+            status);
 #endif
         goto Done;
     }
@@ -286,8 +284,9 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     // This allows us to have multiple Requests (including both writes and reads)
     // in-progress simultaneously from our single default Queue.
     //
+    //
     WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(&queueConfig,
-                                           WdfIoQueueDispatchParallel);
+        WdfIoQueueDispatchParallel);
 
     //
     // Declare our I/O Event Processing callbacks
@@ -295,10 +294,10 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     // We handle read, write, and device control requests.
     //
     // The Framework automagically handles Create and Close requests for us and will
-    // will complete any OTHER request types with STATUS_INVALID_DEVICE_REQUEST.
+    // will complete any OTHER request types with STATUS_INVALID_DEVICE_REQUEST.    
     //
-    queueConfig.EvtIoRead          = BasicUsbEvtRead;
-    queueConfig.EvtIoWrite         = BasicUsbEvtWrite;
+    queueConfig.EvtIoRead = BasicUsbEvtRead;
+    queueConfig.EvtIoWrite = BasicUsbEvtWrite;
     queueConfig.EvtIoDeviceControl = BasicUsbEvtDeviceControl;
 
     //
@@ -309,14 +308,14 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
     queueConfig.PowerManaged = WdfTrue;
 
     status = WdfIoQueueCreate(device,
-                              &queueConfig,
-                              WDF_NO_OBJECT_ATTRIBUTES,
-                              WDF_NO_HANDLE);
+        &queueConfig,
+        WDF_NO_OBJECT_ATTRIBUTES,
+        WDF_NO_HANDLE);
 
     if (!NT_SUCCESS(status)) {
 #if DBG
         DbgPrint("WdfIoQueueCreate for default queue failed 0x%0x\n",
-                 status);
+            status);
 #endif
         goto Done;
     }
@@ -326,14 +325,8 @@ BasicUsbEvtDeviceAdd(WDFDRIVER       Driver,
 
 Done:
 
-    DbgPrint("DeviceAdd completes with status 0x%lx\n", status);
-
-    DbgBreakPoint();
-
-
     return (status);
 }
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  BasicUsbEvtDevicePrepareHardware
@@ -538,6 +531,25 @@ BasicUsbEvtDevicePrepareHardware(WDFDEVICE    Device,
                 ASSERT(devContext->BulkOutPipe == nullptr);
 
                 devContext->BulkOutPipe = configuredPipe;
+                DbgPrint("Found Bulk OUT Pipe!\n");
+
+                break;
+            }
+
+            //
+            // Endpoint 8 IN is an OSR USB FX2 BULK endpoint
+            //
+            case (0x08 | 0x80): {
+
+                //
+                // Bulk OUT pipe. Should only ever get one of these...
+                //
+                ASSERT(devContext->BulkInPipe == nullptr);
+
+                devContext->BulkInPipe = configuredPipe;
+#if DBG
+                DbgPrint("Found Bulk IN Pipe!\n");
+#endif
 
                 break;
             }
@@ -564,11 +576,13 @@ BasicUsbEvtDevicePrepareHardware(WDFDEVICE    Device,
     // We hopefully have found everything we need...
     //
     if (devContext->BulkOutPipe == nullptr ||
+        devContext->BulkInPipe == nullptr ||
         devContext->InterruptInPipe == nullptr) {
 #if DBG
-        DbgPrint("Didn't find expected pipes. BOUT=0x%p, IIN=0x%p\n",
-                 devContext->BulkOutPipe,
-                 devContext->InterruptInPipe);
+        DbgPrint("Didn't find expected pipes. BOUT=0x%p, BIN= 0x%p, IIN=0x%p\n",
+            devContext->BulkOutPipe,
+            devContext->BulkInPipe,
+            devContext->InterruptInPipe);
 
 #endif
         status = STATUS_DEVICE_CONFIGURATION_ERROR;
@@ -653,8 +667,10 @@ Done:
 //
 ///////////////////////////////////////////////////////////////////////////////
 NTSTATUS
-BasicUsbEvtDeviceD0Entry(WDFDEVICE              Device,
-                         WDF_POWER_DEVICE_STATE PreviousState)
+BasicUsbEvtDeviceD0Entry(
+    IN WDFDEVICE              Device,
+    IN WDF_POWER_DEVICE_STATE PreviousState
+)
 {
     PBASICUSB_DEVICE_CONTEXT devContext;
     NTSTATUS                 status;
@@ -669,7 +685,7 @@ BasicUsbEvtDeviceD0Entry(WDFDEVICE              Device,
     devContext = BasicUsbGetContextFromDevice(Device);
 
     interruptIoTarget =
-            WdfUsbTargetPipeGetIoTarget(devContext->InterruptInPipe);
+        WdfUsbTargetPipeGetIoTarget(devContext->InterruptInPipe);
 
     //
     // Start the WDF Continuous Reader on this Pipe Target
@@ -679,7 +695,7 @@ BasicUsbEvtDeviceD0Entry(WDFDEVICE              Device,
     if (!NT_SUCCESS(status)) {
 #if DBG
         DbgPrint("WdfIoTargetStart failed 0x%0x\n",
-                 status);
+            status);
 #endif
         goto Done;
     }
@@ -859,28 +875,152 @@ BasicUsbEvtRead(WDFQUEUE   Queue,
                 size_t     Length)
 {
     PBASICUSB_DEVICE_CONTEXT devContext;
+    WDFMEMORY requestMemory;
+    NTSTATUS status;
+
+    
 
     UNREFERENCED_PARAMETER(Length);
 
 #if DBG
     DbgPrint("BasicUsbEvtRead\n");
 #endif
+    // Start our Logic!
 
     //
     // Get a pointer to our device extension, just to show how it's done.
     // (get the WDFDEVICE from the WDFQUEUE, and the extension from the device)
     //
-    devContext = BasicUsbGetContextFromDevice(
-                                              WdfIoQueueGetDevice(Queue));
+    devContext = BasicUsbGetContextFromDevice(WdfIoQueueGetDevice(Queue));
+
 
     //
-    // Nothing to do yet... We're returning zero bytes, so fill that
-    // into the information field
+    // The purpose of this routine will be to convert the read that
+    // we received from the user into a USB request and send it to
+    // the USB controller driver.
+    //
+
+
+    //
+    // We want the controller driver to put the read data directly
+    // into the data buffer that user specified when they called ReadFile.
+    // So, we get the Memory Object that describes the user-specified
+    // buffer (the Output buffer) associated with the Request.  We get
+    // the WDF Memory Object, instead of the buffer pointer, because
+    // WdfUsbTargetPipeFormatRequestForRead wants a WDF Memory Object
+    // (instead of a buffer pointer and length).
+    //
+    status = WdfRequestRetrieveOutputMemory(Request, &requestMemory);
+    if (!NT_SUCCESS(status)) {
+    #if DBG
+        DbgPrint("WdfRequestRetrieveOutputMemory failed 0x%0x\n",
+            status);
+    #endif
+        WdfRequestCompleteWithInformation(Request,status,0);
+        return;
+    }
+
+
+    // Configure the read request and format it into a bulk IN request. 
+    status = WdfUsbTargetPipeFormatRequestForRead(devContext->BulkInPipe, Request, requestMemory, nullptr);
+    if (!NT_SUCCESS(status)) {
+    #if DBG
+        DbgPrint("WdfUsbTargetPipeFormatRequestForRead failed 0x%0x\n",
+            status);
+    #endif
+        WdfRequestCompleteWithInformation(Request, status, 0);
+        return;
+    }
+
+    WdfRequestSetCompletionRoutine(Request,BasicUsbEvtRequestReadCompletionRoutine, WDF_NO_CONTEXT);
+
+    //
+    // Send the request!
+    //
+    if (!WdfRequestSend(Request, WdfUsbTargetPipeGetIoTarget(devContext->BulkInPipe), nullptr)) {
+        status = WdfRequestGetStatus(Request);
+        #if DBG
+            DbgPrint("WdfRequestSend failed 0x%0x\n",status);
+        #endif
+        WdfRequestCompleteWithInformation(Request,status,0);
+    }
+
+
+    //
+    // The Request has been sent to the USB Host Controller... when it's
+    // done, the Completion Routine callback will be called.
+    //
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//  BasicUsbEvtRequestReadCompletionRoutine
+//
+//    This routine is called by the framework when a read
+//    request has been completed by the device
+//
+//  INPUTS:
+//
+//      Request  - The read request
+//
+//      Target   - The I/O target we sent the read to
+//
+//      Params   - Parameter information from the completed
+//                 request
+//
+//      Context  - The context supplied to
+//                 WdfRequestSetCompletionRoutine (NULL in
+//                 our case)
+//
+//  OUTPUTS:
+//
+//      None.
+//
+//  RETURNS:
+//
+//      None.
+//
+//  IRQL:
+//
+//      This routine is called at IRQL <= DISPATCH_LEVEL.
+//
+//  NOTES:
+//
+//      Even though we've applied a PASSIVE_LEVEL execution
+//      level constraint on our device, this callback falls
+//      outstide of the callbacks that the constraint is
+//      enforced on.
+//
+///////////////////////////////////////////////////////////////////////////////
+VOID BasicUsbEvtRequestReadCompletionRoutine(WDFREQUEST Request, WDFIOTARGET Target, PWDF_REQUEST_COMPLETION_PARAMS Params, WDFCONTEXT Context) {
+    PWDF_USB_REQUEST_COMPLETION_PARAMS usbParams;
+
+    UNREFERENCED_PARAMETER(Target);
+    UNREFERENCED_PARAMETER(Context);
+
+    //
+    // The transfer has been completed on the device. Get a pointer to
+    // the USB specific completion information.
+    //
+    usbParams = Params->Parameters.Usb.Completion;
+
+#if DBG
+    DbgPrint("USB read completed with 0x%0x. Bytes transferred 0x%x\n",
+        Params->IoStatus.Status,
+        usbParams->Parameters.PipeRead.Length);
+#endif
+
+    //
+    // Now complete the request back to the user, specifying the
+    // result of the operation.
     //
     WdfRequestCompleteWithInformation(Request,
-                                      STATUS_SUCCESS,
-                                      0);
+        Params->IoStatus.Status,
+        usbParams->Parameters.PipeRead.Length);
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -930,8 +1070,7 @@ BasicUsbEvtWrite(WDFQUEUE   Queue,
     DbgPrint("BasicUsbEvtWrite\n");
 #endif
 
-    devContext = BasicUsbGetContextFromDevice(
-                                              WdfIoQueueGetDevice(Queue));
+    devContext = BasicUsbGetContextFromDevice(WdfIoQueueGetDevice(Queue));
 
     //
     // The purpose of this routine will be to convert the write
@@ -945,8 +1084,7 @@ BasicUsbEvtWrite(WDFQUEUE   Queue,
     // request (only because it's a required parameter to
     // WdfUsbTargetPipeFormatRequestForWrite)
     //
-    status = WdfRequestRetrieveInputMemory(Request,
-                                           &requestMemory);
+    status = WdfRequestRetrieveInputMemory(Request, &requestMemory);
     if (!NT_SUCCESS(status)) {
 #if DBG
         DbgPrint("WdfRequestRetrieveInputMemory failed 0x%0x\n",
@@ -1094,6 +1232,11 @@ BasicUsbEvtRequestWriteCompletionRoutine(WDFREQUEST                     Request,
                                       Params->IoStatus.Status,
                                       usbParams->Parameters.PipeWrite.Length);
 }
+
+
+
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //

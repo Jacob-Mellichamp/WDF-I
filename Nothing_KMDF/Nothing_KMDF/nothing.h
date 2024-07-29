@@ -95,3 +95,5 @@ EVT_WDF_DRIVER_DEVICE_ADD          NothingEvtDeviceAdd;
 EVT_WDF_IO_QUEUE_IO_READ           NothingEvtRead;
 EVT_WDF_IO_QUEUE_IO_WRITE          NothingEvtWrite;
 EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL NothingEvtDeviceControl;
+EVT_WDF_DEVICE_D0_ENTRY EvtWdfDeviceD0Entry;
+EVT_WDF_DEVICE_D0_EXIT EvtWdfDeviceD0Exit;

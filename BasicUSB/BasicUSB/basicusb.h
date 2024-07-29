@@ -96,6 +96,10 @@ typedef struct _BASICUSB_DEVICE_CONTEXT  {
     WDFUSBPIPE   BulkOutPipe;
 
     //
+    // Our bulk IN pipe
+    //
+    WDFUSBPIPE  BulkInPipe;
+    //
     // Our interrupt IN pipe
     //
     WDFUSBPIPE   InterruptInPipe;
@@ -141,6 +145,7 @@ EVT_WDF_DEVICE_D0_EXIT BasicUsbEvtDeviceD0Exit;
 EVT_WDF_USB_READER_COMPLETION_ROUTINE BasicUsbInterruptPipeReadComplete;
 
 EVT_WDF_REQUEST_COMPLETION_ROUTINE BasicUsbEvtRequestWriteCompletionRoutine;
+EVT_WDF_REQUEST_COMPLETION_ROUTINE BasicUsbEvtRequestReadCompletionRoutine;
 
 NTSTATUS
 BasicUsbDoSetBarGraph(_In_ PBASICUSB_DEVICE_CONTEXT DevContext,

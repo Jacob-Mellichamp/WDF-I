@@ -76,9 +76,8 @@ DriverEntry(PDRIVER_OBJECT  DriverObject,
 {
     WDF_DRIVER_CONFIG driverConfig;
     NTSTATUS          status;
-
 #if DBG
-    DbgPrint("\nOSR Nothing Driver -- Compiled %s %s\n",
+    DbgPrint("\nTestDriver -- Driver Entry Called! %s %s\n",
              __DATE__,
              __TIME__);
 #endif
@@ -168,7 +167,9 @@ NothingEvtDeviceAdd(WDFDRIVER       Driver,
     // hardware, thus we don't need EvtPrepareHardware or EvtReleaseHardware
     // There's no power state to handle so we don't need EvtD0Entry or EvtD0Exit.
     //
-
+#ifdef DBG
+    DbgPrint("TestDriver -- DeviceAdd Called!\n");
+#endif
     //
     // Prepare for WDFDEVICE creation
     //
@@ -184,6 +185,7 @@ NothingEvtDeviceAdd(WDFDRIVER       Driver,
     //
     // Create our device object
     //
+    
     status = WdfDeviceCreate(&DeviceInit,
                              &objAttributes,
                              &device);
@@ -196,6 +198,15 @@ NothingEvtDeviceAdd(WDFDRIVER       Driver,
         goto Done;
     }
 
+    // Allow the device to be opened via interface:
+    status = WdfDeviceCreateDeviceInterface(device, &GUID_DEVINTERFACE_NOTHING, NULL);
+
+    if (!NT_SUCCESS(status)) {
+#if DBG
+        DbgPrint("WdfDeviceCreateDeviceInterface failed with status 0x%x\n", status);
+        return status;
+#endif
+    }
     //
     // Create a symbolic link to our Device Object.  This allows apps
     // to open our device by name.  Note that we use a constant name,
@@ -297,6 +308,8 @@ NothingEvtRead(WDFQUEUE   Queue,
                WDFREQUEST Request,
                size_t     Length)
 {
+    DbgPrint("NothingEvtRead\n");
+
     PNOTHING_DEVICE_CONTEXT devContext;
 
     UNREFERENCED_PARAMETER(Length);
@@ -358,6 +371,7 @@ NothingEvtWrite(WDFQUEUE   Queue,
                 size_t     Length)
 {
     UNREFERENCED_PARAMETER(Queue);
+    DbgPrint("NothingEvtWrite\n");
 
 #if DBG
     DbgPrint("NothingEvtWrite\n");
@@ -429,4 +443,26 @@ NothingEvtDeviceControl(WDFQUEUE   Queue,
     WdfRequestCompleteWithInformation(Request,
                                       STATUS_SUCCESS,
                                       0);
+}
+
+
+// Called when Device has entered the D0 powerstate!
+NTSTATUS
+EvtDeviceD0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_STATE PreviousState) {
+#ifdef DBG
+    DbgPrint("TestDriver -- Entering D0 powerstate!\n");
+#endif
+    NTSTATUS status = 0;
+    return status;
+}
+
+// Called when Device has exited the D0 powerstate!
+
+NTSTATUS
+EvtDeviceD0Exit(WDFDEVICE Device, WDF_POWER_DEVICE_STATE TargetState) {
+#ifdef DBG
+    DbgPrint("TestDriver -- Leaving D0 powerstate!\n");
+#endif
+    NTSTATUS status = 0;
+    return status;
 }

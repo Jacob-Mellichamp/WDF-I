@@ -4,20 +4,21 @@
 
 [Version]
 Signature="$WINDOWS NT$"
-Class=OsrNothingClass
-ClassGuid={37E1E5FF-C046-4AA9-81EE-D379F14E61F1}			; OSR Example class
+Class=CCTNothingClass
+ClassGuid={ece2c985-44b7-4022-8d55-f74105b05154}			; Example class (Unique GUID)
 Provider=%ManufacturerName%
 CatalogFile=Nothing_KMDF.cat
 DriverVer= ; TODO: set DriverVer in stampinf property pages
 
 [DestinationDirs]
-DefaultDestDir = 12
+DefaultDestDir = 12 ; Destination directory for copied files: 
+                    ; Desitination 12 = %SystemRoot%\System32\drivers
 
 ; ================= Class section =====================
 [ClassInstall32]
-Addreg=OsrNothingClass
+Addreg=CCTNothingClass
 
-[OsrNothingClass]
+[CCTNothingClass]
 HKR,,,0,%ClassName%
 HKR,,Icon,,-5
 
@@ -35,7 +36,7 @@ Nothing_KMDF.sys  = 1,,
 %ManufacturerName%=Standard,NT$ARCH$
 
 [Standard.NT$ARCH$]
-%Nothing_KMDF.DeviceDesc%=Nothing_KMDF_Device, Root\Nothing
+%Nothing_KMDF.DeviceDesc%=Nothing_KMDF_Device, Root\TestDriver
 
 [Nothing_KMDF_Device.NT]
 CopyFiles=Drivers_Dir
@@ -56,15 +57,15 @@ ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
 ServiceBinary  = %12%\Nothing_KMDF.sys
 AddReg         = KMDFVerifierAddReg
 
-[KMDFVerifierAddReg]
-HKR, Parameters\Wdf,VerifierOn,0x00010001,1
-HKR, Parameters\Wdf,VerboseOn,0x00010001,1
-HKR, Parameters\Wdf,DbgBreakOnError,0x00010001,1
+[KMDFVerifierAddReg]                              ; These are registry flags
+HKR, Parameters\Wdf,VerifierOn,0x00010001,1       ; Adds a verifer 
+HKR, Parameters\Wdf,VerboseOn,0x00010001,1        ; adds a verbose registry value
+HKR, Parameters\Wdf,DbgBreakOnError,0x00010001,1  ; adds a dbgBreakOnError
 
 [Strings]
 SPSVCINST_ASSOCSERVICE= 0x00000002
-ManufacturerName="OSR Open Systems Resources, Inc."
-ClassName="OSR Example Devices"
+ManufacturerName="Charlotte Cyber Tavern Inc."
+ClassName="Cyber Tavern Drivers"
 DiskName = "Nothing_KMDF Installation Disk"
-Nothing_KMDF.DeviceDesc = "OSR's Nothing_KMDF Device"
-Nothing_KMDF.SVCDESC = "OSR's Nothing_KMDF Service"
+Nothing_KMDF.DeviceDesc = "Charlotte Cyber Tavern Inc.'s Nothing_KMDF Device"
+Nothing_KMDF.SVCDESC = "Charlotte Cyber Tavern Inc.'s Nothing_KMDF Service"
